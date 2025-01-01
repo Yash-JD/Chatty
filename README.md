@@ -1,6 +1,4 @@
-# Chatty
-
-- # ✨ Full Stack Realtime Chat App ✨
+# ✨Chatty - A Full Stack Realtime Chat App ✨
 
 ![Demo App](/frontend/public/screenshot-for-readme.png)
 
