@@ -17,7 +17,7 @@ const ChatContainer = () => {
     unsubscribeFromMessages,
   } = useChatStore();
   const { authUser } = useAuthStore();
-  const messageEndRef = useRef(null);
+  const messageEndRef = useRef(null); // use to scroll to the bottom of the chat
 
   useEffect(() => {
     getMessages(selectedUser._id);
