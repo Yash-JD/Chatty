@@ -8,7 +8,6 @@ import path from 'path';
 import { connectDB } from './lib/db.js';
 import authRoutes from './routes/auth.route.js';
 import messageRoutes from './routes/message.route.js';
-
 dotenv.config();
 
 const PORT = process.env.PORT;
