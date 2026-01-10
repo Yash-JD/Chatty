@@ -1,7 +1,6 @@
-import { generateToken } from '../lib/utils.js';
 import User from '../models/user.model.js';
-import bcrypt from 'bcryptjs';
 import cloudinary from '../lib/cloudinary.js';
+import { auth } from '../lib/firebase.js';
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -13,59 +12,62 @@ export const signup = async (req, res) => {
     if (password.length < 6) {
       return res
         .status(400)
-        .json({ message: 'Password must be of atleat 6 characters' });
+        .json({ message: 'Password must be of at least 6 characters' });
     }
 
-    const user = await User.findOne({ email });
+    // Check if user already exists in our database
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ message: 'Email already exists' });
 
-    if (user) return res.status(400).json({ message: 'Email already exists' });
-
-    // hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = new User({
-      fullName,
+    // Create user in Firebase
+    const userRecord = await auth.createUser({
       email,
-      password: hashedPassword,
+      password,
+      displayName: fullName,
     });
 
-    if (newUser) {
-      // generate jwt token here
-      generateToken(newUser._id, res);
-      await newUser.save();
+    // Create user in our database
+    const newUser = new User({
+      firebaseUid: userRecord.uid,
+      fullName,
+      email,
+    });
 
-      res.status(201).json({
-        _id: newUser._id,
-        fullName: newUser.fullName,
-        email: newUser.email,
-        profilePic: newUser.profilePic,
-      });
-    } else {
-      return res.status(400).json({ message: 'Invalid user data' });
-    }
+    await newUser.save();
+
+    res.status(201).json({
+      _id: newUser._id,
+      firebaseUid: newUser.firebaseUid,
+      fullName: newUser.fullName,
+      email: newUser.email,
+      profilePic: newUser.profilePic,
+    });
   } catch (error) {
     console.log('Error in signup controller', error.message);
+    if (error.code === 'auth/email-already-exists') {
+      return res.status(400).json({ message: 'Email already exists in Firebase' });
+    }
     res.status(500).json({ message: 'Internal Server Error' });
   }
 };
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  // Login is now handled by Firebase on the frontend
+  // This endpoint is just for user profile data after Firebase auth
   try {
-    const user = await User.findOne({ email });
+    const { firebaseUid } = req.body;
+    
+    if (!firebaseUid) {
+      return res.status(400).json({ message: 'Firebase UID is required' });
+    }
 
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    const user = await User.findOne({ firebaseUid }).select('-password');
 
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordCorrect)
-      return res.status(400).json({ message: 'Invalid password' });
-
-    generateToken(user._id, res);
+    if (!user) return res.status(400).json({ message: 'User not found' });
 
     res.status(200).json({
       _id: user._id,
+      firebaseUid: user.firebaseUid,
       fullName: user.fullName,
       email: user.email,
       profilePic: user.profilePic,
@@ -76,9 +78,20 @@ export const login = async (req, res) => {
   }
 };
 
-export const logout = (req, res) => {
+export const logout = async (req, res) => {
   try {
-    res.cookie('jwt', '', { maxAge: 0 });
+    // Revoke Firebase tokens
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const decodedToken = await auth.verifyIdToken(token);
+        await auth.revokeRefreshTokens(decodedToken.uid);
+      } catch (error) {
+        console.log('Error revoking token:', error.message);
+      }
+    }
+    
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {
     console.log('Error in logout controller', error.message);
