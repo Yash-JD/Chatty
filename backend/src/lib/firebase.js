@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 
 // Initialize Firebase Admin SDK
 const serviceAccount = JSON.parse(
-  readFileSync('./firebase-service-account.json', 'utf8')
+  readFileSync('../resources/serviceAccountKey.json', 'utf8')
 );
 
 admin.initializeApp({
