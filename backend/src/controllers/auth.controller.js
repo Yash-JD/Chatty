@@ -79,7 +79,7 @@ export const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ firebaseUid }).select('-password');
+    const user = await User.findOne({ firebaseUid });
 
     if (!user) return res.status(StatusCodes.BAD_REQUEST).json({ 
       message: AuthMessages.USER_NOT_FOUND 

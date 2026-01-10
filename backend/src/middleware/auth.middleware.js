@@ -26,7 +26,7 @@ export const protectRoute = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({ firebaseUid: decodedToken.uid }).select('-password');
+    const user = await User.findOne({ firebaseUid: decodedToken.uid });
 
     if (!user) {
       return res.status(StatusCodes.NOT_FOUND).json({ 
