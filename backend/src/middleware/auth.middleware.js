@@ -1,23 +1,25 @@
-import jwt from 'jsonwebtoken';
+import { auth } from '../lib/firebase.js';
 import User from '../models/user.model.js';
 
 export const protectRoute = async (req, res, next) => {
   try {
-    const token = req.cookies.jwt;
-
-    if (!token) {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res
         .status(401)
-        .json({ message: 'Unathorized - No token provided' });
+        .json({ message: 'Unauthorized - No token provided' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const token = authHeader.split(' ')[1];
 
-    if (!decoded) {
-      return res.status(401).json({ message: 'Unathorized - Invalid token' });
+    const decodedToken = await auth.verifyIdToken(token);
+
+    if (!decodedToken) {
+      return res.status(401).json({ message: 'Unauthorized - Invalid token' });
     }
 
-    const user = await User.findById(decoded.userId).select('-password');
+    const user = await User.findOne({ firebaseUid: decodedToken.uid }).select('-password');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
