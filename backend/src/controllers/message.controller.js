@@ -2,6 +2,11 @@ import User from '../models/user.model.js';
 import Message from '../models/message.model.js';
 import cloudinary from '../lib/cloudinary.js';
 import { getReceiverSocketId, io } from '../lib/socket.js';
+import { 
+  MessageMessages, 
+  GeneralMessages, 
+  StatusCodes 
+} from '../shared/response.messages.js';
 
 export const getUsersForSidebar = async (req, res) => {
   try {
@@ -9,10 +14,12 @@ export const getUsersForSidebar = async (req, res) => {
     const filteredUsers = await User.find({
       _id: { $ne: loggedInUserId },
     }).select('-password');
-    res.status(200).json(filteredUsers);
+    res.status(StatusCodes.OK).json(filteredUsers);
   } catch (error) {
     console.log('Error in getUsersForSidebar controller', error.message);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
+      error: GeneralMessages.INTERNAL_SERVER_ERROR 
+    });
   }
 };
 
@@ -26,10 +33,12 @@ export const getMessages = async (req, res) => {
         { senderId: userToChatId, receiverId: myId },
       ],
     });
-    res.status(200).json(messages);
+    res.status(StatusCodes.OK).json(messages);
   } catch (error) {
     console.log('Error in getMessages controller', error.message);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
+      error: GeneralMessages.INTERNAL_SERVER_ERROR 
+    });
   }
 };
 
@@ -60,9 +69,11 @@ export const sendMessage = async (req, res) => {
       io.to(receiverSocketId).emit('newMessage', newMessage);
     }
 
-    res.status(201).json(newMessage);
+    res.status(StatusCodes.CREATED).json(newMessage);
   } catch (error) {
     console.log('Error in sentMessages controller', error.message);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
+      error: GeneralMessages.INTERNAL_SERVER_ERROR 
+    });
   }
 };

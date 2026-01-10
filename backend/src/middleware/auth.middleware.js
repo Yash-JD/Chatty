@@ -1,5 +1,10 @@
 import { auth } from '../lib/firebase.js';
 import User from '../models/user.model.js';
+import { 
+  AuthMessages, 
+  GeneralMessages, 
+  StatusCodes 
+} from '../shared/response.messages.js';
 
 export const protectRoute = async (req, res, next) => {
   try {
@@ -7,8 +12,8 @@ export const protectRoute = async (req, res, next) => {
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res
-        .status(401)
-        .json({ message: 'Unauthorized - No token provided' });
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ message: AuthMessages.UNAUTHORIZED_NO_TOKEN });
     }
 
     const token = authHeader.split(' ')[1];
@@ -16,13 +21,17 @@ export const protectRoute = async (req, res, next) => {
     const decodedToken = await auth.verifyIdToken(token);
 
     if (!decodedToken) {
-      return res.status(401).json({ message: 'Unauthorized - Invalid token' });
+      return res.status(StatusCodes.UNAUTHORIZED).json({ 
+        message: AuthMessages.UNAUTHORIZED_INVALID_TOKEN 
+      });
     }
 
     const user = await User.findOne({ firebaseUid: decodedToken.uid }).select('-password');
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(StatusCodes.NOT_FOUND).json({ 
+        message: AuthMessages.USER_NOT_FOUND 
+      });
     }
 
     // if everything works
@@ -30,6 +39,8 @@ export const protectRoute = async (req, res, next) => {
     next();
   } catch (error) {
     console.log('Error in protectRoute middleware', error.message);
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
+      message: GeneralMessages.INTERNAL_SERVER_ERROR 
+    });
   }
 };

@@ -1,23 +1,35 @@
 import User from '../models/user.model.js';
 import cloudinary from '../lib/cloudinary.js';
 import { auth } from '../lib/firebase.js';
+import { 
+  AuthMessages, 
+  GeneralMessages, 
+  StatusCodes, 
+  FirebaseMessages,
+  createSuccessResponse,
+  createErrorResponse 
+} from '../shared/response.messages.js';
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
   try {
     if (!fullName || !email || !password) {
-      return res.status(400).json({ message: 'All fields are required' });
+      return res.status(StatusCodes.BAD_REQUEST).json({ 
+        message: AuthMessages.ALL_FIELDS_REQUIRED 
+      });
     }
 
     if (password.length < 6) {
       return res
-        .status(400)
-        .json({ message: 'Password must be of at least 6 characters' });
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ message: AuthMessages.PASSWORD_MIN_LENGTH });
     }
 
     // Check if user already exists in our database
     const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: 'Email already exists' });
+    if (existingUser) return res.status(StatusCodes.BAD_REQUEST).json({ 
+      message: AuthMessages.EMAIL_EXISTS 
+    });
 
     // Create user in Firebase
     const userRecord = await auth.createUser({
@@ -35,7 +47,7 @@ export const signup = async (req, res) => {
 
     await newUser.save();
 
-    res.status(201).json({
+    res.status(StatusCodes.CREATED).json({
       _id: newUser._id,
       firebaseUid: newUser.firebaseUid,
       fullName: newUser.fullName,
@@ -44,10 +56,14 @@ export const signup = async (req, res) => {
     });
   } catch (error) {
     console.log('Error in signup controller', error.message);
-    if (error.code === 'auth/email-already-exists') {
-      return res.status(400).json({ message: 'Email already exists in Firebase' });
+    if (error.code === FirebaseMessages.EMAIL_ALREADY_IN_USE) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ 
+        message: AuthMessages.EMAIL_EXISTS_FIREBASE 
+      });
     }
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
+      message: GeneralMessages.INTERNAL_SERVER_ERROR 
+    });
   }
 };
 
@@ -58,14 +74,18 @@ export const login = async (req, res) => {
     const { firebaseUid } = req.body;
     
     if (!firebaseUid) {
-      return res.status(400).json({ message: 'Firebase UID is required' });
+      return res.status(StatusCodes.BAD_REQUEST).json({ 
+        message: AuthMessages.FIREBASE_UID_REQUIRED 
+      });
     }
 
     const user = await User.findOne({ firebaseUid }).select('-password');
 
-    if (!user) return res.status(400).json({ message: 'User not found' });
+    if (!user) return res.status(StatusCodes.BAD_REQUEST).json({ 
+      message: AuthMessages.USER_NOT_FOUND 
+    });
 
-    res.status(200).json({
+    res.status(StatusCodes.OK).json({
       _id: user._id,
       firebaseUid: user.firebaseUid,
       fullName: user.fullName,
@@ -74,7 +94,9 @@ export const login = async (req, res) => {
     });
   } catch (error) {
     console.log('Error in login controller', error.message);
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
+      message: GeneralMessages.INTERNAL_SERVER_ERROR 
+    });
   }
 };
 
@@ -92,10 +114,14 @@ export const logout = async (req, res) => {
       }
     }
     
-    res.status(200).json({ message: 'Logged out successfully' });
+    res.status(StatusCodes.OK).json({ 
+      message: AuthMessages.LOGOUT_SUCCESS 
+    });
   } catch (error) {
     console.log('Error in logout controller', error.message);
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
+      message: GeneralMessages.INTERNAL_SERVER_ERROR 
+    });
   }
 };
 
@@ -104,7 +130,9 @@ export const updateProfile = async (req, res) => {
     const { profilePic } = req.body;
 
     if (!profilePic) {
-      return res.status(400).json({ message: 'Profile pic is required' });
+      return res.status(StatusCodes.BAD_REQUEST).json({ 
+        message: AuthMessages.PROFILE_PIC_REQUIRED 
+      });
     }
 
     const uploadResponse = await cloudinary.uploader.upload(profilePic);
@@ -115,18 +143,22 @@ export const updateProfile = async (req, res) => {
       { profilePic: uploadResponse.secure_url },
       { new: true },
     );
-    res.status(200).json(updateUser);
+    res.status(StatusCodes.OK).json(updateUser);
   } catch (error) {
     console.log('Error in updateProfile controller', error.message);
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
+      message: GeneralMessages.INTERNAL_SERVER_ERROR 
+    });
   }
 };
 
 export const checkAuth = (req, res) => {
   try {
-    res.status(200).json(req.user);
+    res.status(StatusCodes.OK).json(req.user);
   } catch (error) {
     console.log('Error in checkAuth controller', error.message);
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
+      message: GeneralMessages.INTERNAL_SERVER_ERROR 
+    });
   }
 };

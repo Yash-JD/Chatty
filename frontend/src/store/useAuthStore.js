@@ -10,6 +10,11 @@ import {
   getIdToken
 } from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
+import { 
+  AuthMessages, 
+  getFirebaseErrorMessage,
+  showToastMessage 
+} from '../shared/messages.js';
 
 const BASE_URL =
   import.meta.env.MODE === 'development' ? 'http://localhost:5001' : '/';
@@ -67,15 +72,15 @@ export const useAuthStore = create((set, get) => ({
       });
       
       set({ authUser: res.data });
-      toast.success('Account created successfully!');
+      showToastMessage(toast, 'success', AuthMessages.ACCOUNT_CREATED_SUCCESS);
     } catch (error) {
       console.log('Error in signup:', error);
       if (error.code === 'auth/email-already-in-use') {
-        toast.error('Email already exists');
+        showToastMessage(toast, 'error', AuthMessages.EMAIL_ALREADY_IN_USE);
       } else if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+        showToastMessage(toast, 'error', error.response.data.message);
       } else {
-        toast.error('Failed to create account');
+        showToastMessage(toast, 'error', AuthMessages.FAILED_CREATE_ACCOUNT);
       }
     } finally {
       set({ isSigningUp: false });
@@ -97,16 +102,16 @@ export const useAuthStore = create((set, get) => ({
       });
       
       set({ authUser: res.data });
-      toast.success('Logged in successfully!');
+      showToastMessage(toast, 'success', AuthMessages.LOGIN_SUCCESS);
       get().connectSocket();
     } catch (error) {
       console.log('Error in login:', error);
       if (error.code === 'auth/invalid-credential') {
-        toast.error('Invalid email or password');
+        showToastMessage(toast, 'error', AuthMessages.INVALID_CREDENTIALS);
       } else if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+        showToastMessage(toast, 'error', error.response.data.message);
       } else {
-        toast.error('Failed to login');
+        showToastMessage(toast, 'error', AuthMessages.FAILED_LOGIN);
       }
     } finally {
       set({ isLoggingIn: false });
@@ -125,11 +130,11 @@ export const useAuthStore = create((set, get) => ({
       
       await signOut(auth);
       set({ authUser: null });
-      toast.success('Logged out successfully!');
+      showToastMessage(toast, 'success', AuthMessages.LOGOUT_SUCCESS);
       get().disconnectSocket();
     } catch (error) {
       console.log('Error in logout:', error);
-      toast.error('Failed to logout');
+      showToastMessage(toast, 'error', AuthMessages.FAILED_LOGOUT);
     }
   },
 
@@ -137,17 +142,17 @@ export const useAuthStore = create((set, get) => ({
     set({ isUpdatingProfile: true });
     try {
       const user = auth.currentUser;
-      if (!user) throw new Error('User not authenticated');
+      if (!user) throw new Error(AuthMessages.USER_NOT_AUTHENTICATED);
       
       const token = await getIdToken(user);
       const res = await axiosInstance.put('/auth/update-profile', data, {
         headers: { Authorization: `Bearer ${token}` }
       });
       set({ authUser: res.data });
-      toast.success('Profile updated successfully!');
+      showToastMessage(toast, 'success', AuthMessages.PROFILE_UPDATE_SUCCESS);
     } catch (error) {
       console.log('error in update profile:', error);
-      toast.error(error.response?.data?.message || 'Failed to update profile');
+      showToastMessage(toast, 'error', error.response?.data?.message || AuthMessages.FAILED_UPDATE_PROFILE);
     } finally {
       set({ isUpdatingProfile: false });
     }
