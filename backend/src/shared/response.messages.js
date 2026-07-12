@@ -50,6 +50,20 @@ export const GeneralMessages = {
   DELETED: 'Resource deleted successfully',
 };
 
+// Friend System Messages
+export const FriendMessages = {
+  REQUEST_SENT_SUCCESS: 'Friend request sent successfully',
+  REQUEST_ACCEPTED_SUCCESS: 'Friend request accepted',
+  REQUEST_REJECTED_SUCCESS: 'Friend request rejected',
+  FRIEND_REMOVED_SUCCESS: 'Friend removed successfully',
+  EMAIL_NOT_FOUND: 'No user found with this email',
+  CANNOT_FRIEND_SELF: 'You cannot friend yourself',
+  ALREADY_FRIENDS: 'You are already friends with this user',
+  REQUEST_PENDING: 'A friend request is already pending with this user',
+  REQUEST_NOT_FOUND: 'Friend request not found',
+  NOT_FRIENDS: 'You can only message users who are your friends',
+};
+
 // Firebase Specific Messages
 export const FirebaseMessages = {
   EMAIL_ALREADY_IN_USE: 'Email already exists',
