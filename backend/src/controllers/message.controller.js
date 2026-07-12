@@ -7,7 +7,8 @@ import {
   MessageMessages, 
   GeneralMessages, 
   StatusCodes,
-  FriendMessages
+  FriendMessages,
+  createErrorResponse
 } from '../shared/response.messages.js';
 
 export const getUsersForSidebar = async (req, res) => {
@@ -35,9 +36,9 @@ export const getUsersForSidebar = async (req, res) => {
     res.status(StatusCodes.OK).json(friends);
   } catch (error) {
     console.log('Error in getUsersForSidebar controller', error.message);
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
-      error: GeneralMessages.INTERNAL_SERVER_ERROR 
-    });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(
+      createErrorResponse(StatusCodes.INTERNAL_SERVER_ERROR, GeneralMessages.INTERNAL_SERVER_ERROR, error.message)
+    );
   }
 };
 
@@ -56,9 +57,9 @@ export const getMessages = async (req, res) => {
     });
 
     if (!isFriend) {
-      return res.status(StatusCodes.FORBIDDEN).json({
-        message: FriendMessages.NOT_FRIENDS,
-      });
+      return res.status(StatusCodes.FORBIDDEN).json(
+        createErrorResponse(StatusCodes.FORBIDDEN, FriendMessages.NOT_FRIENDS)
+      );
     }
 
     const messages = await Message.find({
@@ -70,9 +71,9 @@ export const getMessages = async (req, res) => {
     res.status(StatusCodes.OK).json(messages);
   } catch (error) {
     console.log('Error in getMessages controller', error.message);
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
-      error: GeneralMessages.INTERNAL_SERVER_ERROR 
-    });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(
+      createErrorResponse(StatusCodes.INTERNAL_SERVER_ERROR, GeneralMessages.INTERNAL_SERVER_ERROR, error.message)
+    );
   }
 };
 
@@ -92,9 +93,9 @@ export const sendMessage = async (req, res) => {
     });
 
     if (!isFriend) {
-      return res.status(StatusCodes.FORBIDDEN).json({
-        message: FriendMessages.NOT_FRIENDS,
-      });
+      return res.status(StatusCodes.FORBIDDEN).json(
+        createErrorResponse(StatusCodes.FORBIDDEN, FriendMessages.NOT_FRIENDS)
+      );
     }
 
     let imageUrl;
@@ -121,8 +122,8 @@ export const sendMessage = async (req, res) => {
     res.status(StatusCodes.CREATED).json(newMessage);
   } catch (error) {
     console.log('Error in sentMessages controller', error.message);
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
-      error: GeneralMessages.INTERNAL_SERVER_ERROR 
-    });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(
+      createErrorResponse(StatusCodes.INTERNAL_SERVER_ERROR, GeneralMessages.INTERNAL_SERVER_ERROR, error.message)
+    );
   }
 };

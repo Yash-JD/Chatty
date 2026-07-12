@@ -4,6 +4,9 @@ import {
   FriendMessages,
   GeneralMessages,
   StatusCodes,
+  createResponse,
+  createErrorResponse,
+  createSuccessResponse,
 } from '../shared/response.messages.js';
 
 // Send a friend request by user email
@@ -15,7 +18,7 @@ export const sendFriendRequest = async (req, res) => {
     if (!email) {
       return res
         .status(StatusCodes.BAD_REQUEST)
-        .json({ message: 'Email is required' });
+        .json(createErrorResponse(StatusCodes.BAD_REQUEST, 'Email is required'));
     }
 
     // 1. Find user by email
@@ -23,7 +26,7 @@ export const sendFriendRequest = async (req, res) => {
     if (!receiver) {
       return res
         .status(StatusCodes.NOT_FOUND)
-        .json({ message: FriendMessages.EMAIL_NOT_FOUND });
+        .json(createErrorResponse(StatusCodes.NOT_FOUND, FriendMessages.EMAIL_NOT_FOUND));
     }
 
     const receiverId = receiver._id;
@@ -32,7 +35,7 @@ export const sendFriendRequest = async (req, res) => {
     if (senderId.toString() === receiverId.toString()) {
       return res
         .status(StatusCodes.BAD_REQUEST)
-        .json({ message: FriendMessages.CANNOT_FRIEND_SELF });
+        .json(createErrorResponse(StatusCodes.BAD_REQUEST, FriendMessages.CANNOT_FRIEND_SELF));
     }
 
     // 3. Check for existing request in either direction
@@ -47,13 +50,13 @@ export const sendFriendRequest = async (req, res) => {
       if (existingRequest.status === 'accepted') {
         return res
           .status(StatusCodes.BAD_REQUEST)
-          .json({ message: FriendMessages.ALREADY_FRIENDS });
+          .json(createErrorResponse(StatusCodes.BAD_REQUEST, FriendMessages.ALREADY_FRIENDS));
       }
 
       if (existingRequest.status === 'pending') {
         return res
           .status(StatusCodes.BAD_REQUEST)
-          .json({ message: FriendMessages.REQUEST_PENDING });
+          .json(createErrorResponse(StatusCodes.BAD_REQUEST, FriendMessages.REQUEST_PENDING));
       }
 
       // If it was rejected, we allow the user to send a request again.
@@ -64,10 +67,9 @@ export const sendFriendRequest = async (req, res) => {
         existingRequest.status = 'pending';
         await existingRequest.save();
 
-        return res.status(StatusCodes.OK).json({
-          message: FriendMessages.REQUEST_SENT_SUCCESS,
-          request: existingRequest,
-        });
+        return res.status(StatusCodes.OK).json(
+          createSuccessResponse(FriendMessages.REQUEST_SENT_SUCCESS, existingRequest)
+        );
       }
     }
 
@@ -79,15 +81,14 @@ export const sendFriendRequest = async (req, res) => {
     });
     await newRequest.save();
 
-    res.status(StatusCodes.CREATED).json({
-      message: FriendMessages.REQUEST_SENT_SUCCESS,
-      request: newRequest,
-    });
+    res.status(StatusCodes.CREATED).json(
+      createResponse(StatusCodes.CREATED, FriendMessages.REQUEST_SENT_SUCCESS, newRequest)
+    );
   } catch (error) {
     console.log('Error in sendFriendRequest controller', error.message);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: GeneralMessages.INTERNAL_SERVER_ERROR });
+      .json(createErrorResponse(StatusCodes.INTERNAL_SERVER_ERROR, GeneralMessages.INTERNAL_SERVER_ERROR, error.message));
   }
 };
 
@@ -106,7 +107,7 @@ export const getPendingRequests = async (req, res) => {
     console.log('Error in getPendingRequests controller', error.message);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: GeneralMessages.INTERNAL_SERVER_ERROR });
+      .json(createErrorResponse(StatusCodes.INTERNAL_SERVER_ERROR, GeneralMessages.INTERNAL_SERVER_ERROR, error.message));
   }
 };
 
@@ -120,27 +121,27 @@ export const respondToFriendRequest = async (req, res) => {
     if (!['accept', 'reject'].includes(action)) {
       return res
         .status(StatusCodes.BAD_REQUEST)
-        .json({ message: "Action must be either 'accept' or 'reject'" });
+        .json(createErrorResponse(StatusCodes.BAD_REQUEST, "Action must be either 'accept' or 'reject'"));
     }
 
     const request = await FriendRequest.findById(requestId);
     if (!request) {
       return res
         .status(StatusCodes.NOT_FOUND)
-        .json({ message: FriendMessages.REQUEST_NOT_FOUND });
+        .json(createErrorResponse(StatusCodes.NOT_FOUND, FriendMessages.REQUEST_NOT_FOUND));
     }
 
     // Verify the logged-in user is indeed the receiver of the request
     if (request.receiver.toString() !== loggedInUserId.toString()) {
       return res
         .status(StatusCodes.FORBIDDEN)
-        .json({ message: GeneralMessages.FORBIDDEN });
+        .json(createErrorResponse(StatusCodes.FORBIDDEN, GeneralMessages.FORBIDDEN));
     }
 
     if (request.status !== 'pending') {
       return res
         .status(StatusCodes.BAD_REQUEST)
-        .json({ message: 'Request has already been processed' });
+        .json(createErrorResponse(StatusCodes.BAD_REQUEST, 'Request has already been processed'));
     }
 
     request.status = action === 'accept' ? 'accepted' : 'rejected';
@@ -151,15 +152,14 @@ export const respondToFriendRequest = async (req, res) => {
         ? FriendMessages.REQUEST_ACCEPTED_SUCCESS
         : FriendMessages.REQUEST_REJECTED_SUCCESS;
 
-    res.status(StatusCodes.OK).json({
-      message,
-      request,
-    });
+    res.status(StatusCodes.OK).json(
+      createSuccessResponse(message, request)
+    );
   } catch (error) {
     console.log('Error in respondToFriendRequest controller', error.message);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: GeneralMessages.INTERNAL_SERVER_ERROR });
+      .json(createErrorResponse(StatusCodes.INTERNAL_SERVER_ERROR, GeneralMessages.INTERNAL_SERVER_ERROR, error.message));
   }
 };
 
@@ -180,17 +180,17 @@ export const removeFriend = async (req, res) => {
     if (!deletedRequest) {
       return res
         .status(StatusCodes.NOT_FOUND)
-        .json({ message: 'Friend connection not found or already deleted' });
+        .json(createErrorResponse(StatusCodes.NOT_FOUND, 'Friend connection not found or already deleted'));
     }
 
     res
       .status(StatusCodes.OK)
-      .json({ message: FriendMessages.FRIEND_REMOVED_SUCCESS });
+      .json(createSuccessResponse(FriendMessages.FRIEND_REMOVED_SUCCESS));
   } catch (error) {
     console.log('Error in removeFriend controller', error.message);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: GeneralMessages.INTERNAL_SERVER_ERROR });
+      .json(createErrorResponse(StatusCodes.INTERNAL_SERVER_ERROR, GeneralMessages.INTERNAL_SERVER_ERROR, error.message));
   }
 };
 
@@ -216,6 +216,6 @@ export const getFriends = async (req, res) => {
     console.log('Error in getFriends controller', error.message);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: GeneralMessages.INTERNAL_SERVER_ERROR });
+      .json(createErrorResponse(StatusCodes.INTERNAL_SERVER_ERROR, GeneralMessages.INTERNAL_SERVER_ERROR, error.message));
   }
 };

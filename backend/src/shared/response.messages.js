@@ -66,7 +66,7 @@ export const FriendMessages = {
 
 // Firebase Specific Messages
 export const FirebaseMessages = {
-  EMAIL_ALREADY_IN_USE: 'Email already exists',
+  EMAIL_ALREADY_IN_USE: 'auth/email-already-exists',
   INVALID_CREDENTIAL: 'Invalid email or password',
   USER_DISABLED: 'User account has been disabled',
   USER_NOT_FOUND: 'User not found',
