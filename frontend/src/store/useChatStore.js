@@ -9,6 +9,9 @@ export const useChatStore = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
+  pendingRequests: [],
+  isPendingRequestsLoading: false,
+  showFriendPanel: false,
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -65,5 +68,65 @@ export const useChatStore = create((set, get) => ({
     socket.off('newMessage');
   },
 
-  setSelectedUser: (selectedUser) => set({ selectedUser }),
+  getPendingRequests: async () => {
+    set({ isPendingRequestsLoading: true });
+    try {
+      const res = await axiosInstance.get('/friends/pending');
+      set({ pendingRequests: res.data });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to fetch requests');
+    } finally {
+      set({ isPendingRequestsLoading: false });
+    }
+  },
+
+  sendFriendRequest: async (email) => {
+    try {
+      const res = await axiosInstance.post('/friends/request', { email });
+      toast.success(res.data.message || 'Friend request sent!');
+      return true;
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send request');
+      return false;
+    }
+  },
+
+  respondToFriendRequest: async (requestId, action) => {
+    try {
+      const res = await axiosInstance.put(`/friends/respond/${requestId}`, { action });
+      toast.success(res.data.message);
+      
+      // Update pending requests list
+      set({
+        pendingRequests: get().pendingRequests.filter((req) => req._id !== requestId)
+      });
+      
+      // If request was accepted, refresh our friends list
+      if (action === 'accept') {
+        get().getUsers();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to respond to request');
+    }
+  },
+
+  removeFriend: async (friendId) => {
+    try {
+      const res = await axiosInstance.delete(`/friends/${friendId}`);
+      toast.success(res.data.message);
+      
+      // If we unfriend the currently selected user, clear selected user
+      if (get().selectedUser?._id === friendId) {
+        set({ selectedUser: null });
+      }
+      
+      // Refresh friends list
+      get().getUsers();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to remove friend');
+    }
+  },
+
+  setShowFriendPanel: (showFriendPanel) => set({ showFriendPanel, selectedUser: null }),
+  setSelectedUser: (selectedUser) => set({ selectedUser, showFriendPanel: false }),
 }));
