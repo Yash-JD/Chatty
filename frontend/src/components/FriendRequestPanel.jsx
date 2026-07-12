@@ -7,6 +7,9 @@ const FriendRequestPanel = () => {
     pendingRequests,
     isPendingRequestsLoading,
     getPendingRequests,
+    sentRequests,
+    isSentRequestsLoading,
+    getSentRequests,
     sendFriendRequest,
     respondToFriendRequest,
     removeFriend,
@@ -19,8 +22,9 @@ const FriendRequestPanel = () => {
 
   useEffect(() => {
     getPendingRequests();
+    getSentRequests();
     getFriends();
-  }, [getPendingRequests, getFriends]);
+  }, [getPendingRequests, getSentRequests, getFriends]);
 
   const handleSendRequest = async (e) => {
     e.preventDefault();
@@ -139,6 +143,51 @@ const FriendRequestPanel = () => {
                         <X className="size-4" />
                       </button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sent Requests Section */}
+          <div className="bg-base-200/50 rounded-xl p-5 border border-base-300">
+            <h3 className="text-md font-semibold mb-4 flex items-center gap-2">
+              <UserPlus className="size-5 text-primary" /> Sent Friend Requests ({sentRequests.length})
+            </h3>
+
+            {isSentRequestsLoading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="size-6 animate-spin text-primary" />
+              </div>
+            ) : sentRequests.length === 0 ? (
+              <p className="text-sm text-base-content/50 py-4 text-center">
+                No outgoing pending requests.
+              </p>
+            ) : (
+              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
+                {sentRequests.map((req) => (
+                  <div
+                    key={req._id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-base-100 border border-base-300"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={req.receiver?.profilePic || '/avatar.png'}
+                        alt={req.receiver?.fullName}
+                        className="size-10 rounded-full object-cover"
+                      />
+                      <div className="min-w-0">
+                        <div className="font-semibold text-sm truncate">
+                          {req.receiver?.fullName}
+                        </div>
+                        <div className="text-xs text-base-content/60 truncate">
+                          {req.receiver?.email}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="badge badge-warning text-xs gap-1 font-semibold py-2">
+                      Pending
+                    </span>
                   </div>
                 ))}
               </div>

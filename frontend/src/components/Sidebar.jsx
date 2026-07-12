@@ -13,6 +13,7 @@ const Sidebar = () => {
     isUsersLoading,
     showFriendPanel,
     setShowFriendPanel,
+    pendingRequests,
   } = useChatStore();
 
   const { onlineUsers } = useAuthStore();
@@ -40,11 +41,14 @@ const Sidebar = () => {
         <div className="mt-4">
           <button
             onClick={() => setShowFriendPanel(!showFriendPanel)}
-            className={`btn btn-sm w-full flex items-center justify-center gap-2 
+            className={`btn btn-sm w-full flex items-center justify-center gap-2 relative 
               ${showFriendPanel ? 'btn-primary' : 'btn-outline border-base-300'}`}
           >
             <UserPlus className="size-4" />
             <span className="hidden lg:inline">Add Friend</span>
+            {pendingRequests.length > 0 && (
+              <span className="absolute -top-1 -right-1 size-2.5 bg-red-500 rounded-full animate-pulse border border-base-100" />
+            )}
           </button>
         </div>
 
