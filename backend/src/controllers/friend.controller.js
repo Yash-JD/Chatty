@@ -1,5 +1,6 @@
 import User from '../models/user.model.js';
 import FriendRequest from '../models/friendRequest.model.js';
+import { getReceiverSocketId, io } from '../lib/socket.js';
 import {
   FriendMessages,
   GeneralMessages,
@@ -67,6 +68,13 @@ export const sendFriendRequest = async (req, res) => {
         existingRequest.status = 'pending';
         await existingRequest.save();
 
+        // Emit real-time event to receiver via WebSocket
+        const populatedRequest = await FriendRequest.findById(existingRequest._id).populate('sender', 'fullName email profilePic');
+        const receiverSocketId = getReceiverSocketId(receiverId);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit('newFriendRequest', populatedRequest);
+        }
+
         return res.status(StatusCodes.OK).json(
           createSuccessResponse(FriendMessages.REQUEST_SENT_SUCCESS, existingRequest)
         );
@@ -80,6 +88,13 @@ export const sendFriendRequest = async (req, res) => {
       status: 'pending',
     });
     await newRequest.save();
+
+    // Emit real-time event to receiver via WebSocket
+    const populatedRequest = await FriendRequest.findById(newRequest._id).populate('sender', 'fullName email profilePic');
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('newFriendRequest', populatedRequest);
+    }
 
     res.status(StatusCodes.CREATED).json(
       createResponse(StatusCodes.CREATED, FriendMessages.REQUEST_SENT_SUCCESS, newRequest)
@@ -147,6 +162,21 @@ export const respondToFriendRequest = async (req, res) => {
     request.status = action === 'accept' ? 'accepted' : 'rejected';
     await request.save();
 
+    // If accepted, emit event to notify the sender
+    if (action === 'accept') {
+      const senderSocketId = getReceiverSocketId(request.sender);
+      if (senderSocketId) {
+        // Emit 'friendRequestAccepted' with User B's profile details
+        const userBDetails = {
+          _id: req.user._id,
+          fullName: req.user.fullName,
+          email: req.user.email,
+          profilePic: req.user.profilePic
+        };
+        io.to(senderSocketId).emit('friendRequestAccepted', userBDetails);
+      }
+    }
+
     const message =
       action === 'accept'
         ? FriendMessages.REQUEST_ACCEPTED_SUCCESS
@@ -183,6 +213,12 @@ export const removeFriend = async (req, res) => {
         .json(createErrorResponse(StatusCodes.NOT_FOUND, 'Friend connection not found or already deleted'));
     }
 
+    // Emit event to notify the un-friended user
+    const otherSocketId = getReceiverSocketId(friendId);
+    if (otherSocketId) {
+      io.to(otherSocketId).emit('friendRemoved', loggedInUserId);
+    }
+
     res
       .status(StatusCodes.OK)
       .json(createSuccessResponse(FriendMessages.FRIEND_REMOVED_SUCCESS));
@@ -214,6 +250,25 @@ export const getFriends = async (req, res) => {
     res.status(StatusCodes.OK).json(friends);
   } catch (error) {
     console.log('Error in getFriends controller', error.message);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(createErrorResponse(StatusCodes.INTERNAL_SERVER_ERROR, GeneralMessages.INTERNAL_SERVER_ERROR, error.message));
+  }
+};
+
+// Get pending outgoing/sent requests for the logged-in user
+export const getSentRequests = async (req, res) => {
+  try {
+    const senderId = req.user._id;
+
+    const sentRequests = await FriendRequest.find({
+      sender: senderId,
+      status: 'pending',
+    }).populate('receiver', 'fullName email profilePic');
+
+    res.status(StatusCodes.OK).json(sentRequests);
+  } catch (error) {
+    console.log('Error in getSentRequests controller', error.message);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json(createErrorResponse(StatusCodes.INTERNAL_SERVER_ERROR, GeneralMessages.INTERNAL_SERVER_ERROR, error.message));
