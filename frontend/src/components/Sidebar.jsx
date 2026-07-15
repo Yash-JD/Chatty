@@ -2,11 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { useChatStore } from '../store/useChatStore';
 import { useAuthStore } from '../store/useAuthStore';
 import SidebarSkeleton from './SidebarSkeleton';
-import { Users } from 'lucide-react';
+import { Users, UserPlus } from 'lucide-react';
 
 const Sidebar = () => {
-  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } =
-    useChatStore();
+  const {
+    getUsers,
+    users,
+    selectedUser,
+    setSelectedUser,
+    isUsersLoading,
+    showFriendPanel,
+    setShowFriendPanel,
+    pendingRequests,
+  } = useChatStore();
 
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -28,6 +36,22 @@ const Sidebar = () => {
           <Users className="size-6" />
           <span className="font-medium hidden lg:block">Contacts</span>
         </div>
+
+        {/* Add Friend Button */}
+        <div className="mt-4">
+          <button
+            onClick={() => setShowFriendPanel(!showFriendPanel)}
+            className={`btn btn-sm w-full flex items-center justify-center gap-2 relative 
+              ${showFriendPanel ? 'btn-primary' : 'btn-outline border-base-300'}`}
+          >
+            <UserPlus className="size-4" />
+            <span className="hidden lg:inline">Add Friend</span>
+            {pendingRequests.length > 0 && (
+              <span className="absolute -top-1 -right-1 size-2.5 bg-red-500 rounded-full animate-pulse border border-base-100" />
+            )}
+          </button>
+        </div>
+
         <div className="mt-3 hidden lg:flex items-center gap-2">
           <label className="cursor-pointer flex items-center gap-2">
             <input
