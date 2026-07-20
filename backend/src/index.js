@@ -6,6 +6,7 @@ import { app, server, io } from './lib/socket.js';
 import path from 'path';
 
 import { connectDB } from './lib/db.js';
+import { checkAndInitializeAIUser } from './lib/seedAI.js';
 import authRoutes from './routes/auth.route.js';
 import messageRoutes from './routes/message.route.js';
 import friendRoutes from './routes/friend.route.js';
@@ -34,7 +35,8 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`Server is running on PORT: ${PORT}`);
-  connectDB();
+  await connectDB();
+  await checkAndInitializeAIUser();
 });
