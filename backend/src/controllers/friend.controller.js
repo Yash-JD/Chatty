@@ -199,6 +199,14 @@ export const removeFriend = async (req, res) => {
     const { friendId } = req.params;
     const loggedInUserId = req.user._id;
 
+    // Check if the user is attempting to unfriend Chatty AI
+    const targetUser = await User.findById(friendId);
+    if (targetUser && targetUser.email === 'ai@chatty.com') {
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json(createErrorResponse(StatusCodes.BAD_REQUEST, "You cannot unfriend Chatty AI"));
+    }
+
     const deletedRequest = await FriendRequest.findOneAndDelete({
       status: 'accepted',
       $or: [

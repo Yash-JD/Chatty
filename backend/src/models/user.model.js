@@ -20,6 +20,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    isPremium: {
+      type: Boolean,
+      default: false,
+    },
+    aiChatCount: {
+      type: Number,
+      default: 0,
+    },
+    lastAiChatReset: {
+      type: Date,
+      default: Date.now,
+    },
   },
   { timestamps: true },
 );

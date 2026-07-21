@@ -2,6 +2,7 @@ import User from '../models/user.model.js';
 import Message from '../models/message.model.js';
 import FriendRequest from '../models/friendRequest.model.js';
 import cloudinary from '../lib/cloudinary.js';
+import { generateAIResponse } from '../lib/gemini.js';
 import { getReceiverSocketId, io } from '../lib/socket.js';
 import {
   MessageMessages,
@@ -33,7 +34,11 @@ export const getUsersForSidebar = async (req, res) => {
       _id: { $in: friendIds },
     });
 
-    res.status(StatusCodes.OK).json(friends);
+    // Fetch and prepend the Chatty AI virtual user
+    const aiUser = await User.findOne({ email: 'ai@chatty.com' });
+    const responseList = aiUser ? [aiUser, ...friends] : friends;
+
+    res.status(StatusCodes.OK).json(responseList);
   } catch (error) {
     console.log('Error in getUsersForSidebar controller', error.message);
     res
@@ -53,24 +58,29 @@ export const getMessages = async (req, res) => {
     const { id: userToChatId } = req.params;
     const myId = req.user._id;
 
-    // Verify accepted friendship exists
-    const isFriend = await FriendRequest.findOne({
-      status: 'accepted',
-      $or: [
-        { sender: myId, receiver: userToChatId },
-        { sender: userToChatId, receiver: myId },
-      ],
-    });
+    // Verify accepted friendship exists (bypass if chat is with Chatty AI)
+    const receiverUser = await User.findById(userToChatId);
+    const isAI = receiverUser && receiverUser.email === 'ai@chatty.com';
 
-    if (!isFriend) {
-      return res
-        .status(StatusCodes.FORBIDDEN)
-        .json(
-          createErrorResponse(
-            StatusCodes.FORBIDDEN,
-            FriendMessages.NOT_FRIENDS,
-          ),
-        );
+    if (!isAI) {
+      const isFriend = await FriendRequest.findOne({
+        status: 'accepted',
+        $or: [
+          { sender: myId, receiver: userToChatId },
+          { sender: userToChatId, receiver: myId },
+        ],
+      });
+
+      if (!isFriend) {
+        return res
+          .status(StatusCodes.FORBIDDEN)
+          .json(
+            createErrorResponse(
+              StatusCodes.FORBIDDEN,
+              FriendMessages.NOT_FRIENDS,
+            ),
+          );
+      }
     }
 
     const messages = await Message.find({
@@ -100,24 +110,57 @@ export const sendMessage = async (req, res) => {
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    // Verify accepted friendship exists
-    const isFriend = await FriendRequest.findOne({
-      status: 'accepted',
-      $or: [
-        { sender: senderId, receiver: receiverId },
-        { sender: receiverId, receiver: senderId },
-      ],
-    });
+    // Verify accepted friendship exists (bypass if chat is with Chatty AI)
+    const receiverUser = await User.findById(receiverId);
+    const isAI = receiverUser && receiverUser.email === 'ai@chatty.com';
 
-    if (!isFriend) {
-      return res
-        .status(StatusCodes.FORBIDDEN)
-        .json(
-          createErrorResponse(
-            StatusCodes.FORBIDDEN,
-            FriendMessages.NOT_FRIENDS,
-          ),
-        );
+    if (!isAI) {
+      const isFriend = await FriendRequest.findOne({
+        status: 'accepted',
+        $or: [
+          { sender: senderId, receiver: receiverId },
+          { sender: receiverId, receiver: senderId },
+        ],
+      });
+
+      if (!isFriend) {
+        return res
+          .status(StatusCodes.FORBIDDEN)
+          .json(
+            createErrorResponse(
+              StatusCodes.FORBIDDEN,
+              FriendMessages.NOT_FRIENDS,
+            ),
+          );
+      }
+    } else {
+      // AI Chat prompt limit checking for non-premium users
+      if (!req.user.isPremium) {
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+        const now = new Date();
+        const lastReset = new Date(req.user.lastAiChatReset || now);
+
+        if (now.getTime() - lastReset.getTime() >= THIRTY_DAYS_MS) {
+          req.user.aiChatCount = 0;
+          req.user.lastAiChatReset = now;
+          await req.user.save();
+        }
+
+        if (req.user.aiChatCount >= 20) {
+          return res
+            .status(StatusCodes.FORBIDDEN)
+            .json(
+              createErrorResponse(
+                StatusCodes.FORBIDDEN,
+                "You have reached your limit of 20 AI prompts for this month. Upgrade to Premium for unlimited chats!"
+              )
+            );
+        }
+
+        // Increment count
+        req.user.aiChatCount += 1;
+        await req.user.save();
+      }
     }
 
     let imageUrl;
@@ -136,12 +179,49 @@ export const sendMessage = async (req, res) => {
 
     await newMessage.save();
 
-    const receiverSocketId = getReceiverSocketId(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit('newMessage', newMessage);
-    }
-
+    // Respond back immediately with the user's message
     res.status(StatusCodes.CREATED).json(newMessage);
+
+    // If it is the AI, handle Gemini call asynchronously
+    if (isAI) {
+      (async () => {
+        try {
+          const aiResponseText = await generateAIResponse(text);
+
+          const aiMessage = new Message({
+            senderId: receiverId,
+            receiverId: senderId,
+            text: aiResponseText,
+          });
+          await aiMessage.save();
+
+          // Push to user socket
+          const userSocketId = getReceiverSocketId(senderId);
+          if (userSocketId) {
+            io.to(userSocketId).emit('newMessage', aiMessage);
+          }
+        } catch (aiError) {
+          console.error('Error generating AI response:', aiError.message);
+          const aiErrorMessage = new Message({
+            senderId: receiverId,
+            receiverId: senderId,
+            text: "Sorry, I am having trouble processing that right now. Please try again later.",
+          });
+          await aiErrorMessage.save();
+
+          const userSocketId = getReceiverSocketId(senderId);
+          if (userSocketId) {
+            io.to(userSocketId).emit('newMessage', aiErrorMessage);
+          }
+        }
+      })();
+    } else {
+      // Direct user-to-user Socket push
+      const receiverSocketId = getReceiverSocketId(receiverId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('newMessage', newMessage);
+      }
+    }
   } catch (error) {
     console.log('Error in sentMessages controller', error.message);
     res
