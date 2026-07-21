@@ -4,9 +4,14 @@ export const generateAIResponse = async (prompt) => {
     throw new Error('GEMINI_API_KEY is not configured in the environment variables.');
   }
 
-  // Fallback chain of modern, active models
+  // Fallback chain of modern, active models, prioritizing user's choice
   const models = [
-    'gemini-3.1-flash-lite'  ];
+    'gemini-3.1-flash-lite',
+  ];
+
+  // Prepend system instructions to ensure responses are brief, clean, and conversational
+  const systemPrefix = "System instruction: You are Chatty AI, a friendly and highly concise chat assistant. Answer the user's prompt. Keep your response short, direct, simple, and under 3 sentences. Avoid long lists, tables, markdown headers, and formatting unless the user explicitly asks for details.\n\nUser prompt: ";
+  const fullPrompt = `${systemPrefix}${prompt}`;
 
   let lastError;
 
@@ -20,7 +25,7 @@ export const generateAIResponse = async (prompt) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
+          contents: [{ parts: [{ text: fullPrompt }] }],
         }),
       });
 
