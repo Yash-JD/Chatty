@@ -83,12 +83,24 @@ export const getMessages = async (req, res) => {
       }
     }
 
-    const messages = await Message.find({
+    let messages = await Message.find({
       $or: [
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
     });
+
+    // Seed default welcome message if it's the user's first time loading the AI chat
+    if (isAI && messages.length === 0) {
+      const welcomeMessage = new Message({
+        senderId: userToChatId, // AI is sender
+        receiverId: myId,      // User is receiver
+        text: `Hi ${req.user.fullName}, how can I help you today?`,
+      });
+      await welcomeMessage.save();
+      messages = [welcomeMessage];
+    }
+
     res.status(StatusCodes.OK).json(messages);
   } catch (error) {
     console.log('Error in getMessages controller', error.message);
@@ -156,10 +168,6 @@ export const sendMessage = async (req, res) => {
               )
             );
         }
-
-        // Increment count
-        req.user.aiChatCount += 1;
-        await req.user.save();
       }
     }
 
@@ -195,6 +203,12 @@ export const sendMessage = async (req, res) => {
           });
           await aiMessage.save();
 
+          // Increment count on successful response generation
+          if (!req.user.isPremium) {
+            req.user.aiChatCount += 1;
+            await req.user.save();
+          }
+
           // Push to user socket
           const userSocketId = getReceiverSocketId(senderId);
           if (userSocketId) {
@@ -205,7 +219,7 @@ export const sendMessage = async (req, res) => {
           const aiErrorMessage = new Message({
             senderId: receiverId,
             receiverId: senderId,
-            text: "Sorry, I am having trouble processing that right now. Please try again later.",
+            text: `Sorry, I am having trouble processing that right now: ${aiError.message}. Please try again later.`,
           });
           await aiErrorMessage.save();
 
