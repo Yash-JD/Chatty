@@ -197,48 +197,55 @@ const FriendRequestPanel = () => {
 
         {/* Right Column: Friends List Management */}
         <div className="bg-base-200/50 rounded-xl p-5 border border-base-300">
-          <h3 className="text-md font-semibold mb-4 flex items-center gap-2">
-            <Users className="size-5 text-primary" /> Current Friends ({friends.length})
-          </h3>
+          {(() => {
+            const visibleFriends = friends.filter((friend) => friend.email !== 'ai@chatty.com');
+            return (
+              <>
+                <h3 className="text-md font-semibold mb-4 flex items-center gap-2">
+                  <Users className="size-5 text-primary" /> Current Friends ({visibleFriends.length})
+                </h3>
 
-          {friends.length === 0 ? (
-            <p className="text-sm text-base-content/50 py-8 text-center">
-              You haven't added any friends yet. Invite them by email to start chatting!
-            </p>
-          ) : (
-            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-              {friends.map((friend) => (
-                <div
-                  key={friend._id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-base-100 border border-base-300"
-                >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={friend.profilePic || '/avatar.png'}
-                      alt={friend.fullName}
-                      className="size-10 rounded-full object-cover"
-                    />
-                    <div className="min-w-0">
-                      <div className="font-semibold text-sm truncate">
-                        {friend.fullName}
+                {visibleFriends.length === 0 ? (
+                  <p className="text-sm text-base-content/50 py-8 text-center">
+                    You haven't added any friends yet. Invite them by email to start chatting!
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                    {visibleFriends.map((friend) => (
+                      <div
+                        key={friend._id}
+                        className="flex items-center justify-between p-3 rounded-lg bg-base-100 border border-base-300"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={friend.profilePic || '/avatar.png'}
+                            alt={friend.fullName}
+                            className="size-10 rounded-full object-cover"
+                          />
+                          <div className="min-w-0">
+                            <div className="font-semibold text-sm truncate">
+                              {friend.fullName}
+                            </div>
+                            <div className="text-xs text-base-content/60 truncate">
+                              {friend.email}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeFriend(friend._id)}
+                          className="btn btn-sm btn-outline btn-error gap-1"
+                          title="Remove Friend"
+                        >
+                          <UserMinus className="size-4" />
+                          <span className="hidden sm:inline">Remove</span>
+                        </button>
                       </div>
-                      <div className="text-xs text-base-content/60 truncate">
-                        {friend.email}
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                  <button
-                    onClick={() => removeFriend(friend._id)}
-                    className="btn btn-sm btn-outline btn-error gap-1"
-                    title="Remove Friend"
-                  >
-                    <UserMinus className="size-4" />
-                    <span className="hidden sm:inline">Remove</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
